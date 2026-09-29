@@ -6,6 +6,7 @@ share/*
 
 lib64
 pyenv.cfg
-download.zip
 
+download.zip
+traces*
 
