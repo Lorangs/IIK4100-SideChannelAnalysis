@@ -1,0 +1,12 @@
+How to verify the found key?
+
+Required library: pyaes
+
+pip3 install pyaes
+
+Once a key is found, use the provided AES_encryption.py to verify it:
+1) Open the plaintext-unknown_key.txt file and pick one plaintext.
+2) Open the ciphertext-unknown_key.txt file and identify the related ciphertext (they are
+paired across both files by order).
+3) Edit AES_encryption.py to add the found key and desired plaintext (hardcoded).
+4) Run the script and compare the resulting ciphertext with the one from step 2.
