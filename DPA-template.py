@@ -9,12 +9,15 @@ def myin(filename):
         data = f.readlines()[:-1]
     return tohex(np.array([line[:-2].split(" ") for line in data]))   
 
+def myout(filename, data):
+    with open(filename, 'w') as f:
+        f.write(f"{data}\n")
+
 
 #TODO:
 #Select which files to open. Filenames defined at the top.
-traces = np.load(r"traces-00112233445566778899aabbccddeeff.npy")
-plaintexts = myin(r"plaintext-00112233445566778899aabbccddeeff.txt")
-
+traces = np.load(r"traces-unknown_key.npy")
+plaintexts = myin(r"plaintext-unknown_key.txt")
 
 
 Sbox = np.array([
@@ -37,21 +40,6 @@ Sbox = np.array([
             ])
 
 
- 
-
-def myload2(fname,trlen=370000,start=0,len=370000,n=200):
-    myfile = open(fname, 'rb')
-    traces = np.zeros((n, len))
-    myfile.seek(start)
-    for i in range(n):      
-        if len+start > trlen:
-            t = [int.from_bytes(myfile.read(1), byteorder='big') for i in range(len-start)]
-        else:
-            t = [int.from_bytes(myfile.read(1), byteorder='big') for i in range(len)]
-        traces[i] = t
-    myfile.close()
-    return traces
-
 def mycorr(x,y):
     xr,xc = x.shape
     yr,yc = y.shape
@@ -67,13 +55,14 @@ def mycorr(x,y):
     return C
 
 
-FIRST_ROUND_START      = 45000
-FIRST_ROUND_STOP       = 75000
+FIRST_ROUND_START      = 0                      # 10000
+FIRST_ROUND_STOP       = np.shape(traces)[1]    # 50000
 #plt.plot(np.arange(np.shape(traces)[1]), traces[-1,:])
 #plt.vlines(FIRST_ROUND_START, ymin=0, ymax=200, colors='r', label=f"AES Start: {FIRST_ROUND_START}")
 #plt.vlines(FIRST_ROUND_STOP, ymin=0, ymax=200, colors='r', label=f"AES Stop: {FIRST_ROUND_STOP}")
 #plt.legend()
 #plt.show()
+#exit()
 
 best_corr = 0
 full_key = ""
@@ -105,12 +94,15 @@ for BYTE in range(16):
         max_corr = np.max(corr)
         if max_corr > best_corr:
             best_corr = max_corr
-            best_t = np.argmax(corr)
+            best_time = np.argmax(corr)
             best_key = key
     # Construct full key in 2 digits, hexadecimal format, byte by byte
     full_key += format(best_key,"02x")
-    print("Best Key: ", format(best_key,"02x"), "Best time: ", best_t, "Highest corr: ", best_corr)
+    print("Best Key: ", format(best_key,"02x"), "Best time: ", best_time, "Highest corr: ", best_corr)
 
     # Reset tracker values between each byte
-    best_corr, best_t, best_k = 0,0,0
-print("Full results: ", full_key)
+    best_corr, best_time, best_key = 0,0,0
+
+key_string = bytes.fromhex(full_key).hex(" ")
+print(f"Recovered key:\t{key_string}")
+myout("recovered_key-unknown.txt", f"{key_string}\n")
