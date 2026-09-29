@@ -2,11 +2,20 @@ import numpy as np
 import matplotlib.pyplot as plt
 from numpy.matlib import repmat
 
+tohex = np.vectorize(lambda x: int(x, 16))
 
-ptfile1 = "plaintext-00112233445566778899aabbccddeeff.txt"
-ptfile2 = "plaintext-unknown_key.txt"
-trfile1 = "traces-00112233445566778899aabbccddeeff.npy"
-trfile2 = "traces-unknown_key.npy"
+def myin(filename):
+    with open(filename, 'r') as f:
+        data = f.readlines()[:-1]
+    return tohex(np.array([line[:-2].split(" ") for line in data]))   
+
+
+#TODO:
+#Select which files to open. Filenames defined at the top.
+traces = np.load(r"traces-00112233445566778899aabbccddeeff.npy")
+plaintexts = myin(r"plaintext-00112233445566778899aabbccddeeff.txt")
+
+
 
 Sbox = np.array([
             0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5, 0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76,
@@ -28,15 +37,7 @@ Sbox = np.array([
             ])
 
 
-tohex = np.vectorize(lambda x: int(x, 16))
-
-def myin(filename):
-    with open(filename, 'r') as f:
-        data = f.readlines()[:-1]
-    return tohex(np.array([line[:-2].split(" ") for line in data]))    
-
-def myload(filename):
-    return np.load(filename)
+ 
 
 def myload2(fname,trlen=370000,start=0,len=370000,n=200):
     myfile = open(fname, 'rb')
@@ -66,41 +67,49 @@ def mycorr(x,y):
     return C
 
 
-#TODO:
-#Select which files to open. Filenames defined at the top.
-traces = myload(trfile1)
-plaintexts = myin(ptfile1)
-
+FIRST_ROUND_START      = 45000
+FIRST_ROUND_STOP       = 75000
+#plt.plot(np.arange(np.shape(traces)[1]), traces[-1,:])
+#plt.vlines(FIRST_ROUND_START, ymin=0, ymax=200, colors='r', label=f"AES Start: {FIRST_ROUND_START}")
+#plt.vlines(FIRST_ROUND_STOP, ymin=0, ymax=200, colors='r', label=f"AES Stop: {FIRST_ROUND_STOP}")
+#plt.legend()
+#plt.show()
 
 best_corr = 0
 full_key = ""
 # Let's iterate through all the key's 16 bytes
 for BYTE in range(16):
-    for k in range(256):
+    for key in range(256):
+        
         # Compute the AES simulation until the intermediate value
-        # YOUR CODE:
+        v_i_k = Sbox[plaintexts[:, BYTE]^key]      # intermediate value at i,k
+        #print(np.shape(v_i_k))
+        #print(v_i_k)
 
+        # count the hamming wheight of the result from S-box of the first round.
         # Apply the power function (Hemming Weight) onto the intermadiate value 
         # then add second dimension because mycorr requires 2D matrix: 
         # add ".reshape(-1,1)" at the end of your output
-        # YOUR CODE:
+        
+        hamming_weight = np.bitwise_count(v_i_k).reshape(-1,1)
+        #print(hamming_weight)
         
 
         # Use the premade mycorr() Pearson's correlation coefficient calculation function 
         # Inputs are the provided traces and the previously computed power values matrix
-        # YOUR CODE:
-        corr = 
-        
+        corr = mycorr(traces[:, FIRST_ROUND_START:FIRST_ROUND_STOP], hamming_weight)
+        #print(f"corr =\t{np.shape(corr)}")
+
 
         # Keeping track of the highest correlation value and related t and k
         max_corr = np.max(corr)
         if max_corr > best_corr:
             best_corr = max_corr
             best_t = np.argmax(corr)
-            best_k = k
+            best_key = key
     # Construct full key in 2 digits, hexadecimal format, byte by byte
-    full_key+=format(best_k,"02x")
-    print("Best Key: ", format(best_k,"02x"), "Best time: ", best_t, "Highest corr: ", best_corr)
+    full_key += format(best_key,"02x")
+    print("Best Key: ", format(best_key,"02x"), "Best time: ", best_t, "Highest corr: ", best_corr)
 
     # Reset tracker values between each byte
     best_corr, best_t, best_k = 0,0,0
